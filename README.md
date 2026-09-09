@@ -19,6 +19,8 @@ The app captures the screen every two seconds, but only performs OCR and stores 
 - A loopback-only, read-only Streamable HTTP MCP server at `http://127.0.0.1:7331/mcp`
 - Local OAuth 2.1 Authorization Code flow with PKCE S256, short-lived access tokens, rotating refresh tokens, per-tool scopes, and client revocation
 - Pause/resume, app exclusions, visible status, evidence-thumbnail control, and delete-all-memory
+- A configurable global shortcut (default `⌥⌘P`) that pauses or resumes capture from any app, and an optional Dock icon
+- Paused state is shown in both the menu-bar icon and the Dock icon badge
 - Seven MCP tools: `search_memory`, `get_recent_activity`, `get_episode`, `get_day_summary`, `get_open_actions`, `get_person_context`, and `get_project_context`
 
 There are no user accounts, passwords, analytics SDKs, telemetry, cloud models, or cloud backends. MCP authorization is approved locally and protects access to the on-device database.

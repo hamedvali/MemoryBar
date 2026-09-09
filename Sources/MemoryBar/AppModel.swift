@@ -14,6 +14,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var mcpError: String?
     @Published private(set) var authorizedClients: [AuthorizedMCPClient] = []
     @Published private(set) var captureFlash = false
+    @Published private(set) var showsDockIcon: Bool
+    @Published private(set) var pauseShortcutEnabled: Bool
+    @Published private(set) var pauseShortcut: HotKeyCombination
+    /// Set when the system refuses the combination, usually because another app
+    /// already owns it. Surfaced in Settings so a dead shortcut is never silent.
+    @Published private(set) var pauseShortcutUnavailable = false
 
     let startedAt = Date()
     let port: UInt16 = 7_331
@@ -25,9 +31,9 @@ final class AppModel: ObservableObject {
     private var httpServer: LocalHTTPServer?
     private var authorization: MCPAuthorizationService?
     private var refreshTimer: Timer?
+    private let pauseHotKey = GlobalHotKey()
 
     var mcpURL: String { "http://127.0.0.1:\(port)/mcp" }
-    var healthURL: String { "http://127.0.0.1:\(port)/health" }
     var screenPermissionGranted: Bool { CGPreflightScreenCaptureAccess() }
     var accessibilityPermissionGranted: Bool { AccessibilityReader.isTrusted }
 
@@ -36,6 +42,9 @@ final class AppModel: ObservableObject {
         isPaused = captureDisabledForSmokeTest || defaults.bool(forKey: "capture.paused")
         retainThumbnails = defaults.object(forKey: "capture.retainThumbnails") as? Bool ?? true
         excludedAppsText = defaults.string(forKey: "capture.excludedApps") ?? "1Password, Keychain Access"
+        showsDockIcon = defaults.bool(forKey: "ui.showDockIcon")
+        pauseShortcutEnabled = defaults.object(forKey: "shortcut.enabled") as? Bool ?? true
+        pauseShortcut = HotKeyCombination.load(from: defaults)
 
         let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         databaseURL = applicationSupport
@@ -73,6 +82,8 @@ final class AppModel: ObservableObject {
             lastError = error.localizedDescription
         }
 
+        applyPauseShortcut()
+
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.refreshCounts()
@@ -86,6 +97,34 @@ final class AppModel: ObservableObject {
         isPaused.toggle()
         defaults.set(isPaused, forKey: "capture.paused")
         applyCaptureSettings()
+    }
+
+    func updatePauseShortcutEnabled(_ value: Bool) {
+        pauseShortcutEnabled = value
+        defaults.set(value, forKey: "shortcut.enabled")
+        applyPauseShortcut()
+    }
+
+    func updatePauseShortcut(_ combination: HotKeyCombination) {
+        pauseShortcut = combination
+        combination.save(to: defaults)
+        applyPauseShortcut()
+    }
+
+    /// Frees the shortcut while the user records a new one, so the old binding
+    /// cannot fire mid-recording. Paired with `resumePauseShortcut()`.
+    func suspendPauseShortcut() {
+        pauseHotKey.unregister()
+    }
+
+    func resumePauseShortcut() {
+        applyPauseShortcut()
+    }
+
+    func updateShowsDockIcon(_ value: Bool) {
+        showsDockIcon = value
+        defaults.set(value, forKey: "ui.showDockIcon")
+        NSApplication.shared.setActivationPolicy(value ? .regular : .accessory)
     }
 
     func updateExcludedApps(_ value: String) {
@@ -146,6 +185,18 @@ final class AppModel: ObservableObject {
 
     func quit() {
         NSApplication.shared.terminate(nil)
+    }
+
+    private func applyPauseShortcut() {
+        guard pauseShortcutEnabled else {
+            pauseHotKey.unregister()
+            pauseShortcutUnavailable = false
+            return
+        }
+        let registered = pauseHotKey.register(pauseShortcut) { [weak self] in
+            Task { @MainActor in self?.togglePaused() }
+        }
+        pauseShortcutUnavailable = !registered
     }
 
     private func applyCaptureSettings() {

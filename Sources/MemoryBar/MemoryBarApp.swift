@@ -2,18 +2,39 @@ import AppKit
 import Combine
 import SwiftUI
 
+/// What the menu bar and Dock should show for a given state. Kept pure and
+/// separate so the two can never drift apart, and so an inverted mapping fails
+/// a test instead of shipping.
+struct StatusPresentation: Equatable {
+    let symbolName: String
+    let accessibilityDescription: String
+    let toolTip: String
+    let showsPauseBadge: Bool
+
+    init(paused: Bool, error: String?) {
+        symbolName = paused ? "pause.circle.fill" : "brain.fill"
+        accessibilityDescription = paused ? "MemoryBar, paused" : "MemoryBar, remembering"
+        showsPauseBadge = paused
+        toolTip = paused
+            ? "MemoryBar is paused"
+            : (error == nil ? "MemoryBar is remembering locally" : "MemoryBar needs attention")
+    }
+}
+
 @MainActor
 final class MemoryBarDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     private var model: AppModel?
     private var subscriptions = Set<AnyCancellable>()
+    private let baseApplicationIcon = NSApplication.shared.applicationIconImage
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApplication.shared.setActivationPolicy(.accessory)
-
         let model = AppModel()
         self.model = model
+        // The model owns this preference; reading the raw key here too would be
+        // a second source of truth for the same setting.
+        NSApplication.shared.setActivationPolicy(model.showsDockIcon ? .regular : .accessory)
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem = item
@@ -31,11 +52,27 @@ final class MemoryBarDelegate: NSObject, NSApplicationDelegate {
         popover.contentSize = NSSize(width: 460, height: 680)
         popover.contentViewController = NSHostingController(rootView: MemoryPopover(model: model))
 
+        // @Published fires from willSet, so the model property still holds the
+        // OLD value while this runs. Render from the values the publisher hands
+        // us; reading model.isPaused here renders every change one step behind.
         model.$isPaused
             .combineLatest(model.$lastError)
-            .sink { [weak self] _, _ in self?.updateStatusItem() }
+            .sink { [weak self] paused, error in
+                self?.render(paused: paused, error: error)
+            }
             .store(in: &subscriptions)
-        updateStatusItem()
+
+        // A policy switch builds a new Dock tile from the bundle icon, so the
+        // badge has to be re-applied once that tile exists.
+        model.$showsDockIcon
+            .sink { [weak self] _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    guard let self, let model = self.model else { return }
+                    self.render(paused: model.isPaused, error: model.lastError)
+                }
+            }
+            .store(in: &subscriptions)
+        render(paused: model.isPaused, error: model.lastError)
 
         if !UserDefaults.standard.bool(forKey: "ui.hasShownFirstPopover") {
             UserDefaults.standard.set(true, forKey: "ui.hasShownFirstPopover")
@@ -64,16 +101,50 @@ final class MemoryBarDelegate: NSObject, NSApplicationDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
 
-    private func updateStatusItem() {
-        guard let model, let button = statusItem?.button else { return }
+    /// Stamps a pause badge onto the app icon so a paused MemoryBar reads as
+    /// paused in the Dock and the app switcher too, not just the menu bar.
+    private func updateDockIcon(paused: Bool) {
+        guard let baseApplicationIcon else { return }
+        guard paused else {
+            NSApplication.shared.applicationIconImage = baseApplicationIcon
+            NSApplication.shared.dockTile.display()
+            return
+        }
+        let size = baseApplicationIcon.size
+        let badged = NSImage(size: size, flipped: false) { [baseApplicationIcon] rect in
+            baseApplicationIcon.draw(in: rect)
+            let diameter = rect.width * 0.40
+            let inset = rect.width * 0.03
+            let badgeRect = NSRect(
+                x: rect.maxX - diameter - inset,
+                y: rect.minY + inset,
+                width: diameter,
+                height: diameter
+            )
+            let config = NSImage.SymbolConfiguration(pointSize: diameter, weight: .semibold)
+            guard let badge = NSImage(systemSymbolName: "pause.circle.fill", accessibilityDescription: nil)?
+                .withSymbolConfiguration(config) else { return true }
+            NSColor.white.setFill()
+            NSBezierPath(ovalIn: badgeRect.insetBy(dx: diameter * 0.12, dy: diameter * 0.12)).fill()
+            badge.draw(in: badgeRect)
+            return true
+        }
+        NSApplication.shared.applicationIconImage = badged
+        NSApplication.shared.dockTile.display()
+    }
+
+    /// Single place that paints menu bar + Dock from an explicit state, so both
+    /// can never disagree with each other or lag the model.
+    private func render(paused: Bool, error: String?) {
+        guard let button = statusItem?.button else { return }
+        let appearance = StatusPresentation(paused: paused, error: error)
         button.image = NSImage(
-            systemSymbolName: model.isPaused ? "brain.head.profile" : "brain.fill",
-            accessibilityDescription: "MemoryBar"
+            systemSymbolName: appearance.symbolName,
+            accessibilityDescription: appearance.accessibilityDescription
         )
         button.image?.isTemplate = true
-        button.toolTip = model.isPaused
-            ? "MemoryBar is paused"
-            : (model.lastError == nil ? "MemoryBar is remembering locally" : "MemoryBar needs attention")
+        button.toolTip = appearance.toolTip
+        updateDockIcon(paused: appearance.showsPauseBadge)
     }
 }
 
@@ -351,6 +422,22 @@ private struct MemoryPopover: View {
                             Text("Evidence thumbnails")
                                 .font(.system(size: 14, weight: .semibold))
                             Text("Keep small local images with memories")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.switch)
+
+                PauseShortcutSettings(model: model)
+
+                Toggle(isOn: Binding(
+                        get: { model.showsDockIcon },
+                        set: { model.updateShowsDockIcon($0) }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Show in Dock")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("MemoryBar lives in the menu bar; turn this on to see its icon, and its paused badge, in the Dock too.")
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                         }

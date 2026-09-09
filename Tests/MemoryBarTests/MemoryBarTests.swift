@@ -1,4 +1,5 @@
 import Foundation
+import Carbon.HIToolbox
 import XCTest
 @testable import MemoryBar
 
@@ -204,6 +205,67 @@ final class MemoryBarTests: XCTestCase {
             path: "/authorize/decision",
             origin: "https://attacker.example"
         ))
+    }
+
+    func testShortcutRendersInAppleModifierOrder() {
+        let combination = HotKeyCombination(
+            keyCode: 35,
+            carbonModifiers: UInt32(controlKey | optionKey | shiftKey | cmdKey),
+            keyLabel: "P"
+        )
+        XCTAssertEqual(combination.displayName, "⌃⌥⇧⌘P")
+        XCTAssertEqual(HotKeyCombination.default.displayName, "⌥⌘P")
+    }
+
+    func testShortcutWithoutModifiersIsRejected() {
+        // A bare key would swallow that letter in every app on the system.
+        let bare = HotKeyCombination(keyCode: 35, carbonModifiers: 0, keyLabel: "P")
+        XCTAssertFalse(bare.isUsable)
+        XCTAssertTrue(HotKeyCombination.default.isUsable)
+    }
+
+    func testModifierFlagsMapToCarbonMask() {
+        XCTAssertEqual(HotKeyCombination.carbonModifiers(from: []), 0)
+        XCTAssertEqual(
+            HotKeyCombination.carbonModifiers(from: [.command, .option]),
+            UInt32(cmdKey | optionKey)
+        )
+        XCTAssertEqual(
+            HotKeyCombination.carbonModifiers(from: [.control, .shift]),
+            UInt32(controlKey | shiftKey)
+        )
+        // Caps lock and friends must not become part of a shortcut.
+        XCTAssertEqual(HotKeyCombination.carbonModifiers(from: [.capsLock, .function]), 0)
+    }
+
+    func testPausedStateShowsPauseIconAndBadge() {
+        let paused = StatusPresentation(paused: true, error: nil)
+        XCTAssertEqual(paused.symbolName, "pause.circle.fill")
+        XCTAssertTrue(paused.showsPauseBadge)
+        XCTAssertEqual(paused.toolTip, "MemoryBar is paused")
+    }
+
+    func testRunningStateShowsNoPauseBadge() {
+        let running = StatusPresentation(paused: false, error: nil)
+        XCTAssertEqual(running.symbolName, "brain.fill")
+        XCTAssertFalse(
+            running.showsPauseBadge,
+            "A running MemoryBar must never carry a pause badge; the icons were "
+            + "previously painted from a willSet-stale value and read inverted."
+        )
+    }
+
+    func testAppearanceIsNeverInverted() {
+        for (paused, error) in [(true, nil), (false, nil), (true, "boom"), (false, "boom")] as [(Bool, String?)] {
+            let appearance = StatusPresentation(paused: paused, error: error)
+            XCTAssertEqual(appearance.showsPauseBadge, paused)
+            XCTAssertEqual(appearance.symbolName == "pause.circle.fill", paused)
+        }
+    }
+
+    func testErrorSurfacesInToolTipOnlyWhileRunning() {
+        XCTAssertEqual(StatusPresentation(paused: false, error: "boom").toolTip, "MemoryBar needs attention")
+        XCTAssertEqual(StatusPresentation(paused: true, error: "boom").toolTip, "MemoryBar is paused")
     }
 
     func testConsentPageAllowsTheClientCallbackInFormAction() throws {
