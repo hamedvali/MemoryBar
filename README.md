@@ -17,10 +17,11 @@ The app captures the screen every two seconds, but only performs OCR and stores 
 - SQLite in WAL mode with exact OCR text, structured metadata, timestamps, confidence, evidence, optional thumbnails, and FTS5 full-text search
 - Apple NaturalLanguage sentence embeddings when available, with a deterministic local hashed-vector fallback
 - A loopback-only, read-only Streamable HTTP MCP server at `http://127.0.0.1:7331/mcp`
+- Local OAuth 2.1 Authorization Code flow with PKCE S256, short-lived access tokens, rotating refresh tokens, per-tool scopes, and client revocation
 - Pause/resume, app exclusions, visible status, evidence-thumbnail control, and delete-all-memory
 - Seven MCP tools: `search_memory`, `get_recent_activity`, `get_episode`, `get_day_summary`, `get_open_actions`, `get_person_context`, and `get_project_context`
 
-There is no login, analytics SDK, telemetry, cloud model, or cloud backend.
+There are no user accounts, passwords, analytics SDKs, telemetry, cloud models, or cloud backends. MCP authorization is approved locally and protects access to the on-device database.
 
 ## Architecture
 
@@ -47,6 +48,9 @@ Episode builder (2-minute same-window merge)
 SQLite on this Mac
           │
           ▼
+OAuth 2.1 + PKCE authorization
+          │
+          ▼
 127.0.0.1:7331/mcp ──► Codex / Claude / local MCP clients
 ```
 
@@ -70,34 +74,39 @@ The build creates a locally signed app at `outputs/MemoryBar.app`. Its explicit 
 
 For development, `swift run` also works, but using the app bundle gives macOS a stable bundle identifier for privacy permissions.
 
-The database is stored at:
+The memory and authorization databases are stored at:
 
 ```text
 ~/Library/Application Support/MemoryBar/memory.sqlite3
+~/Library/Application Support/MemoryBar/authorization.sqlite3
 ```
 
-The popover's **Show memory file** button reveals it in Finder. **Delete all…** removes observations, episodes, FTS rows, actions, and thumbnails, then truncates the WAL.
+The popover's **Show memory file** button reveals the memory database in Finder. **Delete all…** removes observations, episodes, FTS rows, actions, and thumbnails, then truncates the WAL. OAuth tokens are stored only as keyed digests; the per-install digest key is an owner-only (`0600`) file in MemoryBar's Application Support directory. Revoking a client removes all of its active and refresh tokens.
 
 ## Connect an MCP client
 
-Keep MemoryBar running. Its server deliberately binds only to `127.0.0.1`, so it is available to clients on the same Mac and cannot be reached from the LAN.
+Keep MemoryBar running. Its server deliberately binds only to `127.0.0.1`, so it is available to clients on the same Mac and cannot be reached from the LAN. Every MCP request requires an OAuth access token. On first connection, MemoryBar opens a local approval page that shows the client name and requested read permissions. Approval is required once; refresh-token rotation keeps later connections automatic.
 
 ### Codex / ChatGPT desktop app
 
 In a terminal:
 
 ```bash
-codex mcp add memorybar --url http://127.0.0.1:7331/mcp
+codex mcp add memorybar \
+  --url http://127.0.0.1:7331/mcp \
+  --oauth-client-registration dcr \
+  --oauth-resource http://127.0.0.1:7331/mcp
+codex mcp login memorybar --oauth-client-registration dcr
 codex mcp list
 ```
 
-Alternatively, in the ChatGPT desktop app open **Settings → MCP servers → Add server**, choose **Streamable HTTP**, and paste the URL shown in MemoryBar. Restart the client after adding it. Codex CLI, the IDE extension, and the desktop app share the MCP configuration, as described in the [official OpenAI MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+Your browser opens the MemoryBar approval page during `login`. Review the requested scopes and select **Allow**. Alternatively, in a desktop client that supports OAuth-protected Streamable HTTP MCP, add the URL shown in MemoryBar and follow its authorization prompt.
 
 ChatGPT on the web does not read local MCP configuration and cannot reach a Mac's `127.0.0.1`. Keeping the product strictly local therefore supports the local ChatGPT/Codex desktop experience, not hosted ChatGPT web. A web connection would require an authenticated remote HTTPS service, which is intentionally outside this MVP's privacy boundary.
 
 ### Claude or another stdio-only MCP client
 
-This repository includes a dependency-free bridge. Use an absolute path in the client's MCP configuration:
+This repository includes a dependency-free, OAuth-aware bridge. Use an absolute path in the client's MCP configuration:
 
 ```json
 {
@@ -113,7 +122,18 @@ This repository includes a dependency-free bridge. Use an absolute path in the c
 }
 ```
 
-Clients that already support Streamable HTTP can use the URL directly.
+On its first request, the bridge opens MemoryBar's approval page in the browser. It caches the resulting client ID and rotating refresh token in a mode-`0600` file under `~/Library/Application Support/MemoryBar/oauth-clients/`. Clients that already support Streamable HTTP and OAuth should use the URL directly.
+
+## MCP authorization model
+
+- The OAuth server and MCP resource server both run inside MemoryBar on loopback.
+- Public desktop clients use Authorization Code with mandatory PKCE S256; there is no shared client secret.
+- Access tokens expire after 10 minutes. Refresh tokens last up to 90 days and rotate on every use.
+- Tokens are audience-bound to `http://127.0.0.1:7331/mcp` and must be sent in the `Authorization` header, never in a URL.
+- Supported scopes map directly to the seven memory tools. `tools/list` exposes only the tools granted to that client, and unauthorized tool calls return HTTP `403`.
+- Browser origins and HTTP `Host` values are restricted to loopback to prevent DNS-rebinding access.
+- The menu-bar panel lists authorized clients, their last use, and a **Revoke** action.
+- OAuth discovery uses Protected Resource Metadata and Authorization Server Metadata. Dynamic Client Registration is included for compatibility with current desktop clients.
 
 ## Example agent routines
 
@@ -138,7 +158,7 @@ External actions—sending messages, creating calendar events, or changing tasks
 swift test
 ```
 
-The tests cover episode merging, full-text/embedding search, action and person extraction, project context, database behavior, and the MCP tool catalog. Screen capture itself requires interactive macOS permissions and is verified by running the built app.
+The tests cover episode merging, full-text/embedding search, action and person extraction, project context, database behavior, the MCP tool catalog, unauthenticated HTTP rejection, PKCE verification, scope enforcement, refresh-token rotation, and client revocation. Screen capture itself requires interactive macOS permissions and is verified by running the built app.
 
 ## MVP tradeoffs and next steps
 
@@ -146,7 +166,7 @@ The tests cover episode merging, full-text/embedding search, action and person e
 - **Episode semantics:** merging and entity extraction are deterministic heuristics. This keeps the MVP fast and private, but names and commitments can be wrong; consumers receive confidence and episode evidence.
 - **Embedding coverage:** Apple sentence embeddings vary by installed language. The hashed fallback preserves offline semantic-ish retrieval without a model download, but is less accurate.
 - **Capture scope:** the MVP captures the first active display, not every monitor, and retains only a reduced JPEG when the thumbnail setting is enabled.
-- **Security:** loopback binding prevents network access, but another process running as the same user can query the unauthenticated local port. Production should add a per-install token and database encryption.
+- **Security:** OAuth prevents an unapproved local process from reading memory merely by discovering the port. A malicious process already controlling the user's macOS account remains outside the MVP threat model. Database encryption at rest is still a future hardening option.
 - **Storage growth:** there is no retention window yet. Use app exclusions, disable thumbnails, or delete all memory from the popover.
 - **Distribution:** the generated app uses an ad-hoc signature with a stable local designated requirement. This is useful for MVP development, but public distribution still needs an Apple Developer ID signature, notarization, and a hardened-runtime review.
 
@@ -161,6 +181,7 @@ Sources/MemoryBar/
   LocalVisionProcessor.swift  OCR and local classification
   MemoryDatabase.swift        SQLite, FTS5, embeddings, episodes
   MCPProtocolHandler.swift    MCP tools and JSON-RPC
+  MCPAuthorization.swift      local OAuth, PKCE, scopes and token storage
   LocalHTTPServer.swift       loopback HTTP transport
 scripts/
   build_app.sh                creates outputs/MemoryBar.app

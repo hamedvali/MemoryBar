@@ -209,8 +209,8 @@ private struct MemoryPopover: View {
         VStack(alignment: .leading, spacing: 13) {
             sectionHeader(
                 title: "Local MCP",
-                subtitle: model.mcpError == nil ? "Ready for AI tools on this Mac" : "Server needs attention",
-                systemImage: "point.3.connected.trianglepath.dotted",
+                subtitle: model.mcpError == nil ? "OAuth protected • This Mac only" : "Server needs attention",
+                systemImage: "lock.shield.fill",
                 color: model.mcpError == nil ? .blue : .orange
             )
 
@@ -242,6 +242,47 @@ private struct MemoryPopover: View {
             .padding(.trailing, 8)
             .padding(.vertical, 8)
             .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+
+            if model.authorizedClients.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "person.badge.key")
+                        .foregroundStyle(.secondary)
+                    Text("No AI clients authorized yet. Your client will ask for approval when it first connects.")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(model.authorizedClients.prefix(4)) { client in
+                        HStack(spacing: 10) {
+                            Image(systemName: "checkmark.shield.fill")
+                                .foregroundStyle(.green)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(client.name)
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .lineLimit(1)
+                                Text(client.lastUsedAt.map { "Last used \($0.formatted(.relative(presentation: .named)))" }
+                                    ?? "Authorized")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer(minLength: 4)
+
+                            Button("Revoke", role: .destructive) {
+                                model.revokeMCPClient(id: client.id)
+                            }
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .buttonStyle(.borderless)
+                        }
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 7)
+                        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                }
+            }
         }
         .padding(17)
         .memoryGlass(cornerRadius: 22)

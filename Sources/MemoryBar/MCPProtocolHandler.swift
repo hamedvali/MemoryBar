@@ -8,7 +8,7 @@ final class MCPProtocolHandler: @unchecked Sendable {
         self.database = database
     }
 
-    func handle(_ data: Data) -> Data? {
+    func handle(_ data: Data, authorization: MCPAuthorizationContext) -> Data? {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let method = object["method"] as? String else {
             return encode(error: -32700, message: "Invalid JSON-RPC request", id: NSNull())
@@ -22,7 +22,7 @@ final class MCPProtocolHandler: @unchecked Sendable {
             return encode(result: [
                 "protocolVersion": "2025-06-18",
                 "capabilities": ["tools": ["listChanged": false]],
-                "serverInfo": ["name": "MemoryBar", "version": "0.1.0"],
+                "serverInfo": ["name": "MemoryBar", "version": "0.2.0"],
                 "instructions": "Read-only access to private, on-device work memory. Treat OCR and extracted actions as evidence with confidence, not guaranteed fact."
             ], id: id)
         case "notifications/initialized", "notifications/cancelled":
@@ -30,16 +30,32 @@ final class MCPProtocolHandler: @unchecked Sendable {
         case "ping":
             return hasID ? encode(result: [:], id: id) : nil
         case "tools/list":
-            return encode(result: ["tools": tools], id: id)
+            return encode(result: [
+                "tools": tools.filter { tool in
+                    guard let name = tool["name"] as? String else { return false }
+                    return authorization.permits(tool: name)
+                }
+            ], id: id)
         case "tools/call":
             guard let name = params["name"] as? String else {
                 return encode(error: -32602, message: "Missing tool name", id: id)
+            }
+            guard authorization.permits(tool: name) else {
+                return encode(error: -32001, message: "The authorized client does not have permission to call \(name).", id: id)
             }
             let arguments = params["arguments"] as? [String: Any] ?? [:]
             return encode(result: callTool(name: name, arguments: arguments), id: id)
         default:
             return hasID ? encode(error: -32601, message: "Method not found: \(method)", id: id) : nil
         }
+    }
+
+    func requiredScope(for data: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              object["method"] as? String == "tools/call",
+              let params = object["params"] as? [String: Any],
+              let name = params["name"] as? String else { return nil }
+        return MCPMemoryScope.required(for: name)
     }
 
     private var tools: [[String: Any]] {

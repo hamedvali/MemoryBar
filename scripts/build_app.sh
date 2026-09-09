@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="${0:A:h}"
 ROOT_DIR="${SCRIPT_DIR:h}"
 APP_DIR="${1:-${ROOT_DIR}/outputs/MemoryBar.app}"
-BUILD_DIR="${ROOT_DIR}/.build"
+BUILD_DIR="${MEMORYBAR_BUILD_DIR:-${ROOT_DIR}/.build}"
 
 mkdir -p "${ROOT_DIR}/outputs"
 mkdir -p "${APP_DIR}/Contents/MacOS"
@@ -23,7 +23,15 @@ xcrun actool "${ROOT_DIR}/Resources/Assets.xcassets" \
     --minimum-deployment-target 14.0 \
     --app-icon AppIcon \
     --output-partial-info-plist "${BUILD_DIR}/AssetInfo.plist"
-xattr -cr "${APP_DIR}"
+clear_bundle_metadata() {
+    xattr -cr "${APP_DIR}"
+    # File Provider may immediately restore these directory attributes after
+    # a recursive clear; codesign treats them as invalid bundle detritus.
+    xattr -d com.apple.FinderInfo "${APP_DIR}" 2>/dev/null || true
+    xattr -d 'com.apple.fileprovider.fpfs#P' "${APP_DIR}" 2>/dev/null || true
+}
+
+clear_bundle_metadata
 # A default ad-hoc signature uses the changing CDHash as its designated
 # requirement, which makes macOS privacy grants look like they belong to a
 # different app after every rebuild. This explicit local requirement keeps the
@@ -31,6 +39,6 @@ xattr -cr "${APP_DIR}"
 codesign --force --deep --sign - \
     -r '=designated => identifier "com.localfirst.memorybar"' \
     "${APP_DIR}"
-xattr -cr "${APP_DIR}"
+clear_bundle_metadata
 
 echo "Built ${APP_DIR}"

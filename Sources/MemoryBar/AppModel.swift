@@ -12,6 +12,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var lastCaptureAt: Date?
     @Published private(set) var lastError: String?
     @Published private(set) var mcpError: String?
+    @Published private(set) var authorizedClients: [AuthorizedMCPClient] = []
     @Published private(set) var captureFlash = false
 
     let startedAt = Date()
@@ -22,6 +23,7 @@ final class AppModel: ObservableObject {
     private var database: MemoryDatabase?
     private var captureService: CaptureService?
     private var httpServer: LocalHTTPServer?
+    private var authorization: MCPAuthorizationService?
     private var refreshTimer: Timer?
 
     var mcpURL: String { "http://127.0.0.1:\(port)/mcp" }
@@ -47,10 +49,20 @@ final class AppModel: ObservableObject {
                 Task { @MainActor in self?.receive(status) }
             }
             captureService = capture
-            let server = LocalHTTPServer(port: port, handler: MCPProtocolHandler(database: database))
             do {
+                let authorization = try MCPAuthorizationService(
+                    storageURL: databaseURL.deletingLastPathComponent().appendingPathComponent("authorization.sqlite3"),
+                    port: port
+                )
+                self.authorization = authorization
+                let server = LocalHTTPServer(
+                    port: port,
+                    handler: MCPProtocolHandler(database: database),
+                    authorization: authorization
+                )
                 try server.start()
                 httpServer = server
+                refreshAuthorizedClients()
             } catch {
                 mcpError = error.localizedDescription
             }
@@ -64,6 +76,7 @@ final class AppModel: ObservableObject {
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.refreshCounts()
+                self?.refreshAuthorizedClients()
                 self?.objectWillChange.send()
             }
         }
@@ -105,6 +118,16 @@ final class AppModel: ObservableObject {
     func copyMCPURL() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(mcpURL, forType: .string)
+    }
+
+    func revokeMCPClient(id: String) {
+        do {
+            try authorization?.revoke(clientID: id)
+            refreshAuthorizedClients()
+            mcpError = nil
+        } catch {
+            mcpError = error.localizedDescription
+        }
     }
 
     func revealMemoryFile() {
@@ -160,5 +183,9 @@ final class AppModel: ObservableObject {
         let counts = database.counts()
         observationCount = counts.observations
         episodeCount = counts.episodes
+    }
+
+    private func refreshAuthorizedClients() {
+        authorizedClients = authorization?.authorizedClients() ?? []
     }
 }
