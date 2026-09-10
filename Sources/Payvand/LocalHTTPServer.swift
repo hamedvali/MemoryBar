@@ -6,8 +6,8 @@ final class LocalHTTPServer: @unchecked Sendable {
 
     private let handler: MCPProtocolHandler
     private let authorization: MCPAuthorizationService
-    private let acceptQueue = DispatchQueue(label: "memorybar.http.accept")
-    private let workerQueue = DispatchQueue(label: "memorybar.http.worker", attributes: .concurrent)
+    private let acceptQueue = DispatchQueue(label: "payvand.http.accept")
+    private let workerQueue = DispatchQueue(label: "payvand.http.worker", attributes: .concurrent)
     private var listeningSocket: Int32 = -1
     private var source: DispatchSourceRead?
 
@@ -112,7 +112,7 @@ final class LocalHTTPServer: @unchecked Sendable {
         } else if request.method == "GET", request.path == "/health" {
             send(client, status: "200 OK", contentType: "application/json", body: json([
                 "status": "ok",
-                "service": "MemoryBar",
+                "service": "Payvand",
                 "mcp": "http://127.0.0.1:\(port)/mcp",
                 "authorization": "oauth2"
             ]), request: request)

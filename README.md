@@ -1,6 +1,6 @@
-# MemoryBar MVP
+# Payvand MVP
 
-MemoryBar is a private, local work-memory service for macOS. It has no main window: a small brain icon opens a spacious liquid-glass menu-bar panel showing capture status, active time, memory counts, the local MCP URL, permission state, and privacy settings.
+Payvand is a private, local work-memory service for macOS. It has no main window: a small brain icon opens a spacious liquid-glass menu-bar panel showing capture status, active time, memory counts, the local MCP URL, permission state, and privacy settings.
 
 The app captures the screen every two seconds, but only performs OCR and stores a record when the visual change score passes a threshold. A ten-second fallback stores periodic context even on mostly static screens. All processing and storage stay on the Mac.
 
@@ -69,40 +69,40 @@ From this folder:
 
 ```bash
 ./scripts/build_app.sh
-open outputs/MemoryBar.app
+open outputs/Payvand.app
 ```
 
-The build creates a locally signed app at `outputs/MemoryBar.app`. Its explicit designated requirement keeps the app identity stable across local rebuilds so Screen Recording and Accessibility grants are not invalidated whenever the binary changes. On first launch, click the menu-bar brain, allow both permissions, then quit and reopen MemoryBar once.
+The build creates a locally signed app at `outputs/Payvand.app`. Its explicit designated requirement keeps the app identity stable across local rebuilds so Screen Recording and Accessibility grants are not invalidated whenever the binary changes. On first launch, click the menu-bar brain, allow both permissions, then quit and reopen Payvand once.
 
 For development, `swift run` also works, but using the app bundle gives macOS a stable bundle identifier for privacy permissions.
 
 The memory and authorization databases are stored at:
 
 ```text
-~/Library/Application Support/MemoryBar/memory.sqlite3
-~/Library/Application Support/MemoryBar/authorization.sqlite3
+~/Library/Application Support/Payvand/memory.sqlite3
+~/Library/Application Support/Payvand/authorization.sqlite3
 ```
 
-The popover's **Show memory file** button reveals the memory database in Finder. **Delete all…** removes observations, episodes, FTS rows, actions, and thumbnails, then truncates the WAL. OAuth tokens are stored only as keyed digests; the per-install digest key is an owner-only (`0600`) file in MemoryBar's Application Support directory. Revoking a client removes all of its active and refresh tokens.
+The popover's **Show memory file** button reveals the memory database in Finder. **Delete all…** removes observations, episodes, FTS rows, actions, and thumbnails, then truncates the WAL. OAuth tokens are stored only as keyed digests; the per-install digest key is an owner-only (`0600`) file in Payvand's Application Support directory. Revoking a client removes all of its active and refresh tokens.
 
 ## Connect an MCP client
 
-Keep MemoryBar running. Its server deliberately binds only to `127.0.0.1`, so it is available to clients on the same Mac and cannot be reached from the LAN. Every MCP request requires an OAuth access token. On first connection, MemoryBar opens a local approval page that shows the client name and requested read permissions. Approval is required once; refresh-token rotation keeps later connections automatic.
+Keep Payvand running. Its server deliberately binds only to `127.0.0.1`, so it is available to clients on the same Mac and cannot be reached from the LAN. Every MCP request requires an OAuth access token. On first connection, Payvand opens a local approval page that shows the client name and requested read permissions. Approval is required once; refresh-token rotation keeps later connections automatic.
 
 ### Codex / ChatGPT desktop app
 
 In a terminal:
 
 ```bash
-codex mcp add memorybar \
+codex mcp add payvand \
   --url http://127.0.0.1:7331/mcp \
   --oauth-client-registration dcr \
   --oauth-resource http://127.0.0.1:7331/mcp
-codex mcp login memorybar --oauth-client-registration dcr
+codex mcp login payvand --oauth-client-registration dcr
 codex mcp list
 ```
 
-Your browser opens the MemoryBar approval page during `login`. Review the requested scopes and select **Allow**. Alternatively, in a desktop client that supports OAuth-protected Streamable HTTP MCP, add the URL shown in MemoryBar and follow its authorization prompt.
+Your browser opens the Payvand approval page during `login`. Review the requested scopes and select **Allow**. Alternatively, in a desktop client that supports OAuth-protected Streamable HTTP MCP, add the URL shown in Payvand and follow its authorization prompt.
 
 ChatGPT on the web does not read local MCP configuration and cannot reach a Mac's `127.0.0.1`. Keeping the product strictly local therefore supports the local ChatGPT/Codex desktop experience, not hosted ChatGPT web. A web connection would require an authenticated remote HTTPS service, which is intentionally outside this MVP's privacy boundary.
 
@@ -113,10 +113,10 @@ This repository includes a dependency-free, OAuth-aware bridge. Use an absolute 
 ```json
 {
   "mcpServers": {
-    "memorybar": {
+    "payvand": {
       "command": "/usr/bin/python3",
       "args": [
-        "/ABSOLUTE/PATH/TO/MemoryBar/scripts/mcp_stdio_bridge.py",
+        "/ABSOLUTE/PATH/TO/Payvand/scripts/mcp_stdio_bridge.py",
         "http://127.0.0.1:7331/mcp"
       ]
     }
@@ -124,11 +124,11 @@ This repository includes a dependency-free, OAuth-aware bridge. Use an absolute 
 }
 ```
 
-On its first request, the bridge opens MemoryBar's approval page in the browser. It caches the resulting client ID and rotating refresh token in a mode-`0600` file under `~/Library/Application Support/MemoryBar/oauth-clients/`. Clients that already support Streamable HTTP and OAuth should use the URL directly.
+On its first request, the bridge opens Payvand's approval page in the browser. It caches the resulting client ID and rotating refresh token in a mode-`0600` file under `~/Library/Application Support/Payvand/oauth-clients/`. Clients that already support Streamable HTTP and OAuth should use the URL directly.
 
 ## MCP authorization model
 
-- The OAuth server and MCP resource server both run inside MemoryBar on loopback.
+- The OAuth server and MCP resource server both run inside Payvand on loopback.
 - Public desktop clients use Authorization Code with mandatory PKCE S256; there is no shared client secret.
 - Access tokens expire after 10 minutes. Refresh tokens last up to 90 days and rotate on every use.
 - Tokens are audience-bound to `http://127.0.0.1:7331/mcp` and must be sent in the `Authorization` header, never in a URL.
@@ -139,7 +139,7 @@ On its first request, the bridge opens MemoryBar's approval page in the browser.
 
 ## Example agent routines
 
-MemoryBar does not schedule cloud jobs itself. It stays queryable, so a local agent or its scheduler can run prompts such as:
+Payvand does not schedule cloud jobs itself. It stays queryable, so a local agent or its scheduler can run prompts such as:
 
 ```text
 Every hour, call get_recent_activity for the last 60 minutes and get_open_actions.
@@ -175,8 +175,8 @@ The tests cover episode merging, full-text/embedding search, action and person e
 ## Project layout
 
 ```text
-Sources/MemoryBar/
-  MemoryBarApp.swift          menu-bar popover
+Sources/Payvand/
+  PayvandApp.swift          menu-bar popover
   AppModel.swift              lifecycle and settings
   CaptureService.swift        smart capture loop
   AccessibilityReader.swift   focused-app/window metadata
@@ -186,10 +186,10 @@ Sources/MemoryBar/
   MCPAuthorization.swift      local OAuth, PKCE, scopes and token storage
   LocalHTTPServer.swift       loopback HTTP transport
 scripts/
-  build_app.sh                creates outputs/MemoryBar.app
+  build_app.sh                creates outputs/Payvand.app
   mcp_stdio_bridge.py         optional stdio compatibility bridge
 Resources/
   AppIcon-1024.png            editable master application icon
   AppIcon.icns                packaged macOS application icon
-Tests/MemoryBarTests/         deterministic unit tests
+Tests/PayvandTests/         deterministic unit tests
 ```

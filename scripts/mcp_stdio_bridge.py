@@ -31,7 +31,7 @@ SCOPES = " ".join(
         "memory:projects",
     ]
 )
-CACHE_DIRECTORY = Path.home() / "Library" / "Application Support" / "MemoryBar" / "oauth-clients"
+CACHE_DIRECTORY = Path.home() / "Library" / "Application Support" / "Payvand" / "oauth-clients"
 CACHE_KEY = hashlib.sha256(MCP_URL.encode()).hexdigest()[:16]
 CACHE_PATH = CACHE_DIRECTORY / f"stdio-{CACHE_KEY}.json"
 
@@ -47,7 +47,7 @@ class OAuthCallbackHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400, "Invalid OAuth state")
             return
         type(self).result = {key: values[0] for key, values in query.items() if values}
-        body = b"MemoryBar is connected. You can close this window."
+        body = b"Payvand is connected. You can close this window."
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -135,7 +135,7 @@ def authorize_interactively() -> str:
     registration = post_json(
         str(metadata["registration_endpoint"]),
         {
-            "client_name": "MemoryBar stdio bridge",
+            "client_name": "Payvand stdio bridge",
             "redirect_uris": [callback_uri],
             "grant_types": ["authorization_code", "refresh_token"],
             "response_types": ["code"],
@@ -160,17 +160,17 @@ def authorize_interactively() -> str:
             "state": state,
         }
     )
-    print("MemoryBar needs one-time approval in your browser.", file=sys.stderr)
+    print("Payvand needs one-time approval in your browser.", file=sys.stderr)
     if not webbrowser.open(authorization_url):
-        print(f"Open this URL to authorize MemoryBar:\n{authorization_url}", file=sys.stderr)
+        print(f"Open this URL to authorize Payvand:\n{authorization_url}", file=sys.stderr)
     callback_server.handle_request()
     callback_server.server_close()
     result = OAuthCallbackHandler.result
     if result.get("error"):
-        raise RuntimeError(f"MemoryBar authorization was denied: {result['error']}")
+        raise RuntimeError(f"Payvand authorization was denied: {result['error']}")
     code = result.get("code")
     if not code:
-        raise RuntimeError("MemoryBar authorization timed out or returned no code")
+        raise RuntimeError("Payvand authorization timed out or returned no code")
 
     token = token_request(
         {
@@ -258,7 +258,7 @@ def emit_error(request_line: bytes, message: str) -> None:
     payload = {
         "jsonrpc": "2.0",
         "id": request_id,
-        "error": {"code": -32000, "message": f"MemoryBar is unavailable: {message}"},
+        "error": {"code": -32000, "message": f"Payvand is unavailable: {message}"},
     }
     sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\n")
     sys.stdout.flush()

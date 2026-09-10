@@ -22,7 +22,7 @@ final class MCPProtocolHandler: @unchecked Sendable {
             return encode(result: [
                 "protocolVersion": "2025-06-18",
                 "capabilities": ["tools": ["listChanged": false]],
-                "serverInfo": ["name": "MemoryBar", "version": "0.2.0"],
+                "serverInfo": ["name": "Payvand", "version": "0.2.0"],
                 "instructions": "Read-only access to private, on-device work memory. Treat OCR and extracted actions as evidence with confidence, not guaranteed fact."
             ], id: id)
         case "notifications/initialized", "notifications/cancelled":

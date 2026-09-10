@@ -233,7 +233,7 @@ final class MCPAuthorizationService: @unchecked Sendable {
             return uri
         }
         let client = OAuthClientRegistration(
-            clientID: "memorybar_\(try Self.randomToken(byteCount: 18))",
+            clientID: "payvand_\(try Self.randomToken(byteCount: 18))",
             clientName: cleanName,
             redirectURIs: Array(Set(validated)).sorted()
         )
@@ -422,7 +422,7 @@ final class MCPAuthorizationService: @unchecked Sendable {
         let page = """
         <!doctype html>
         <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>Authorize MemoryBar</title>
+        <title>Authorize Payvand</title>
         <style>
         :root{color-scheme:light dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;font:16px -apple-system,BlinkMacSystemFont,sans-serif;background:radial-gradient(circle at 20% 10%,#6d8cff33,transparent 45%),radial-gradient(circle at 85% 90%,#b46cff2b,transparent 42%),#f4f5f8;color:#15161a}.card{width:min(460px,calc(100% - 32px));padding:32px;border:1px solid #ffffffaa;border-radius:28px;background:#ffffffcc;box-shadow:0 24px 70px #13203822;backdrop-filter:blur(28px)}.icon{width:58px;height:58px;display:grid;place-items:center;border-radius:17px;background:linear-gradient(145deg,#5478ff,#8857df);color:white;font-size:29px;box-shadow:0 10px 24px #674ee944}h1{font-size:27px;letter-spacing:-.5px;margin:20px 0 7px}p{color:#656872;line-height:1.45;margin:0 0 20px}ul{list-style:none;padding:0;margin:0 0 24px}li{padding:11px 0;border-bottom:1px solid #8b8f991f}.check{color:#23a35a;font-weight:700;margin-right:8px}.note{font-size:13px;color:#777b85;background:#858b9814;border-radius:13px;padding:12px;margin-bottom:22px}.actions{display:flex;gap:10px}.actions button{flex:1;border:0;border-radius:13px;padding:12px;font:600 15px -apple-system;cursor:pointer}.deny{background:#878b941f;color:inherit}.allow{background:#5a62e8;color:white}@media(prefers-color-scheme:dark){body{background:radial-gradient(circle at 20% 10%,#536ee833,transparent 45%),radial-gradient(circle at 85% 90%,#984bd52b,transparent 42%),#16171a;color:#f4f4f6}.card{background:#27282ddd;border-color:#ffffff1f;box-shadow:0 24px 70px #0008}p,.note{color:#aeb0b7}}
         </style></head><body><main class="card"><div class="icon">&#129504;</div><h1>Allow \(client)?</h1>
@@ -855,7 +855,7 @@ private final class OAuthStore: @unchecked Sendable {
 private enum LocalSecretStore {
     private static var localSecretURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("MemoryBar", isDirectory: true)
+            .appendingPathComponent("Payvand", isDirectory: true)
             .appendingPathComponent("oauth-pepper-v1")
     }
 

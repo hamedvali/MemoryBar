@@ -13,16 +13,16 @@ struct StatusPresentation: Equatable {
 
     init(paused: Bool, error: String?) {
         symbolName = paused ? "pause.circle.fill" : "brain.fill"
-        accessibilityDescription = paused ? "MemoryBar, paused" : "MemoryBar, remembering"
+        accessibilityDescription = paused ? "Payvand, paused" : "Payvand, remembering"
         showsPauseBadge = paused
         toolTip = paused
-            ? "MemoryBar is paused"
-            : (error == nil ? "MemoryBar is remembering locally" : "MemoryBar needs attention")
+            ? "Payvand is paused"
+            : (error == nil ? "Payvand is remembering locally" : "Payvand needs attention")
     }
 }
 
 @MainActor
-final class MemoryBarDelegate: NSObject, NSApplicationDelegate {
+final class PayvandDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     private var model: AppModel?
@@ -39,12 +39,12 @@ final class MemoryBarDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem = item
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "brain.head.profile", accessibilityDescription: "MemoryBar")
+            button.image = NSImage(systemSymbolName: "brain.head.profile", accessibilityDescription: "Payvand")
             button.image?.isTemplate = true
             button.imagePosition = .imageOnly
             button.target = self
             button.action = #selector(togglePopover)
-            button.setAccessibilityLabel("MemoryBar")
+            button.setAccessibilityLabel("Payvand")
         }
 
         popover.behavior = .transient
@@ -101,7 +101,7 @@ final class MemoryBarDelegate: NSObject, NSApplicationDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
 
-    /// Stamps a pause badge onto the app icon so a paused MemoryBar reads as
+    /// Stamps a pause badge onto the app icon so a paused Payvand reads as
     /// paused in the Dock and the app switcher too, not just the menu bar.
     private func updateDockIcon(paused: Bool) {
         guard let baseApplicationIcon else { return }
@@ -149,8 +149,8 @@ final class MemoryBarDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-struct MemoryBarApp: App {
-    @NSApplicationDelegateAdaptor(MemoryBarDelegate.self) private var delegate
+struct PayvandApp: App {
+    @NSApplicationDelegateAdaptor(PayvandDelegate.self) private var delegate
 
     var body: some Scene {
         Settings {
@@ -207,7 +207,7 @@ private struct MemoryPopover: View {
                 }
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("MemoryBar")
+                Text("Payvand")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .tracking(-0.4)
                 HStack(spacing: 6) {
@@ -437,7 +437,7 @@ private struct MemoryPopover: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Show in Dock")
                                 .font(.system(size: 14, weight: .semibold))
-                            Text("MemoryBar lives in the menu bar; turn this on to see its icon, and its paused badge, in the Dock too.")
+                            Text("Payvand lives in the menu bar; turn this on to see its icon, and its paused badge, in the Dock too.")
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                         }
@@ -447,7 +447,7 @@ private struct MemoryPopover: View {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("Excluded applications")
                         .font(.system(size: 14, weight: .semibold))
-                    Text("MemoryBar skips apps in this comma-separated list.")
+                    Text("Payvand skips apps in this comma-separated list.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         TextField("1Password, Keychain Access", text: Binding(

@@ -1,9 +1,9 @@
 import Foundation
 import Carbon.HIToolbox
 import XCTest
-@testable import MemoryBar
+@testable import Payvand
 
-final class MemoryBarTests: XCTestCase {
+final class PayvandTests: XCTestCase {
     func testActionAndPersonExtraction() {
         let text = """
         Met with Sarah Connor about launch.
@@ -23,8 +23,8 @@ final class MemoryBarTests: XCTestCase {
         let context = WindowContext(
             appName: "Xcode",
             bundleIdentifier: "com.apple.dt.Xcode",
-            windowTitle: "MemoryBar — CaptureService.swift",
-            documentURL: "file:///Documents/MemoryBar/Sources/CaptureService.swift"
+            windowTitle: "Payvand — CaptureService.swift",
+            documentURL: "file:///Documents/Payvand/Sources/CaptureService.swift"
         )
         _ = try database.ingest(observation(
             at: now,
@@ -42,7 +42,7 @@ final class MemoryBarTests: XCTestCase {
         XCTAssertEqual(merged.observationCount, 2)
         XCTAssertFalse(database.search(query: "screenshot OCR").isEmpty)
         XCTAssertTrue(database.openActions().first?.text.contains("verify OCR tests") == true)
-        XCTAssertFalse(database.projectContext(project: "MemoryBar").isEmpty)
+        XCTAssertFalse(database.projectContext(project: "Payvand").isEmpty)
     }
 
     func testDifferentWindowCreatesNewEpisode() throws {
@@ -154,7 +154,7 @@ final class MemoryBarTests: XCTestCase {
 
     func testOAuthPKCEScopesRefreshRotationAndRevocation() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("MemoryBarOAuthTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("PayvandOAuthTests-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let authorization = try testAuthorization(in: directory)
         let token = try authorize(authorization, scopes: [MCPMemoryScope.recent])
@@ -242,7 +242,7 @@ final class MemoryBarTests: XCTestCase {
         let paused = StatusPresentation(paused: true, error: nil)
         XCTAssertEqual(paused.symbolName, "pause.circle.fill")
         XCTAssertTrue(paused.showsPauseBadge)
-        XCTAssertEqual(paused.toolTip, "MemoryBar is paused")
+        XCTAssertEqual(paused.toolTip, "Payvand is paused")
     }
 
     func testRunningStateShowsNoPauseBadge() {
@@ -250,7 +250,7 @@ final class MemoryBarTests: XCTestCase {
         XCTAssertEqual(running.symbolName, "brain.fill")
         XCTAssertFalse(
             running.showsPauseBadge,
-            "A running MemoryBar must never carry a pause badge; the icons were "
+            "A running Payvand must never carry a pause badge; the icons were "
             + "previously painted from a willSet-stale value and read inverted."
         )
     }
@@ -264,13 +264,13 @@ final class MemoryBarTests: XCTestCase {
     }
 
     func testErrorSurfacesInToolTipOnlyWhileRunning() {
-        XCTAssertEqual(StatusPresentation(paused: false, error: "boom").toolTip, "MemoryBar needs attention")
-        XCTAssertEqual(StatusPresentation(paused: true, error: "boom").toolTip, "MemoryBar is paused")
+        XCTAssertEqual(StatusPresentation(paused: false, error: "boom").toolTip, "Payvand needs attention")
+        XCTAssertEqual(StatusPresentation(paused: true, error: "boom").toolTip, "Payvand is paused")
     }
 
     func testConsentPageAllowsTheClientCallbackInFormAction() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("MemoryBarCSPTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("PayvandCSPTests-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = try testAuthorization(in: directory)
         let redirectURI = "http://localhost:49155/callback"
@@ -303,7 +303,7 @@ final class MemoryBarTests: XCTestCase {
 
     func testOAuthApprovalIsIdempotentForDuplicateClicks() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("MemoryBarOAuthRetryTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("PayvandOAuthRetryTests-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = try testAuthorization(in: directory)
         let verifier = String(repeating: "r", count: 64)
@@ -346,7 +346,7 @@ final class MemoryBarTests: XCTestCase {
 
     private func temporaryDatabase() throws -> (MemoryDatabase, URL) {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("MemoryBarTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("PayvandTests-\(UUID().uuidString)", isDirectory: true)
         let database = try MemoryDatabase(url: directory.appendingPathComponent("memory.sqlite3"))
         return (database, directory)
     }

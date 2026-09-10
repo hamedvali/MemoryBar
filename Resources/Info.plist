@@ -5,17 +5,17 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>MemoryBar</string>
+    <string>Payvand</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleIconName</key>
     <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
-    <string>com.localfirst.memorybar</string>
+    <string>com.localfirst.payvand</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>MemoryBar</string>
+    <string>Payvand</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -29,7 +29,7 @@
     <key>LSUIElement</key>
     <true/>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>MemoryBar reads the screen locally to build private, searchable work memory.</string>
+    <string>Payvand reads the screen locally to build private, searchable work memory.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Local-first MVP</string>
 </dict>

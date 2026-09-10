@@ -38,7 +38,7 @@ final class AppModel: ObservableObject {
     var accessibilityPermissionGranted: Bool { AccessibilityReader.isTrusted }
 
     init() {
-        let captureDisabledForSmokeTest = ProcessInfo.processInfo.environment["MEMORYBAR_DISABLE_CAPTURE"] == "1"
+        let captureDisabledForSmokeTest = ProcessInfo.processInfo.environment["PAYVAND_DISABLE_CAPTURE"] == "1"
         isPaused = captureDisabledForSmokeTest || defaults.bool(forKey: "capture.paused")
         retainThumbnails = defaults.object(forKey: "capture.retainThumbnails") as? Bool ?? true
         excludedAppsText = defaults.string(forKey: "capture.excludedApps") ?? "1Password, Keychain Access"
@@ -48,7 +48,7 @@ final class AppModel: ObservableObject {
 
         let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         databaseURL = applicationSupport
-            .appendingPathComponent("MemoryBar", isDirectory: true)
+            .appendingPathComponent("Payvand", isDirectory: true)
             .appendingPathComponent("memory.sqlite3")
 
         do {

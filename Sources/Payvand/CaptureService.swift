@@ -54,7 +54,7 @@ actor CaptureService {
         guard CGPreflightScreenCaptureAccess() else {
             onStatus(CaptureStatus(
                 lastCaptureAt: nil,
-                lastError: "Screen Recording is not active for this build. Enable MemoryBar in System Settings, then quit and reopen MemoryBar.",
+                lastError: "Screen Recording is not active for this build. Enable Payvand in System Settings, then quit and reopen Payvand.",
                 didStore: false
             ))
             return
@@ -117,7 +117,7 @@ actor CaptureService {
     private func isExcluded(_ context: WindowContext) -> Bool {
         let app = context.appName.lowercased()
         let bundle = context.bundleIdentifier.lowercased()
-        if bundle == "com.localfirst.memorybar" || app == "memorybar" { return true }
+        if bundle == "com.localfirst.payvand" || app == "payvand" { return true }
         return settings.excludedApps.contains { value in
             let needle = value.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
             return !needle.isEmpty && (app == needle || bundle == needle || app.contains(needle))

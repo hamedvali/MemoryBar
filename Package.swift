@@ -3,20 +3,20 @@
 import PackageDescription
 
 let package = Package(
-    name: "MemoryBar",
+    name: "Payvand",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "MemoryBar", targets: ["MemoryBar"])
+        .executable(name: "Payvand", targets: ["Payvand"])
     ],
     targets: [
         .executableTarget(
-            name: "MemoryBar",
-            path: "Sources/MemoryBar"
+            name: "Payvand",
+            path: "Sources/Payvand"
         ),
         .testTarget(
-            name: "MemoryBarTests",
-            dependencies: ["MemoryBar"],
-            path: "Tests/MemoryBarTests"
+            name: "PayvandTests",
+            dependencies: ["Payvand"],
+            path: "Tests/PayvandTests"
         )
     ],
     swiftLanguageModes: [.v5]
